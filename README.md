@@ -1,6 +1,6 @@
 # Z3 Multiboot
 
-**Classic text adventures on six 1980s computers · Version 0.5 · November 2026**
+**Classic text adventures on six 1980s computers · Version 0.5.1 · November 2026**
 
 Drop a story file on the page and a Commodore 64, Macintosh, Apple II, IBM PC, Amiga or NeXTSTEP boots it. Zork and the other classic Infocom adventures: any game made in the version 3 Z-machine format. Each machine comes with software of its own to play with, and the built-in Welcome Disk shows you around. It's one self-contained HTML file of about 132 KB (it still fits on a C64 floppy), with no install and no internet needed once it's loaded.
 
@@ -110,6 +110,7 @@ python3 build.py --welcome welcome.z3
 
 ## Version history
 
+- **0.5.1** (November 2026): a proper **[MORE]** prompt on every machine. Long passages now pause a screen at a time and wait for a key, instead of scrolling away (on by default; can be turned off in Options). The Welcome Disk's hint booklet (Release 3) now fits on a 40-column screen, with the how-to line at the bottom. Thanks to Fredrik Ramsberg for the report.
 - **0.5** (November 2026): renamed **Z3 Multiboot**. Bring your own disk: no game is built in any more; drop any version 3 story file on the page. New Welcome Disk adventure (The Computer Room, Release 2). Software on every machine: C64 BASIC, Apple II ELIZA and LEDGER ][, the Amiga Workbench and DH0: hard drive. Reset button, Restart computer and Factory reset. Boot sequences, saves kept per game, built-in unpacker so the page runs in more browsers, readable source and build script. Positions saved in 0.4 still load when you drop in Microsoft's `zork1.z3`.
 - **0.4** (November 2026): first public release, as *Zork: The Retro Edition*, with Zork I built in.
 

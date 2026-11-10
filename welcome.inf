@@ -19,7 +19,7 @@ Constant Story      "THE COMPUTER ROOM";
 Constant Headline   "^The Welcome Disk for Z3 Multiboot.
                      ^Developed by Mark Dowling, Melbourne, 2026.
                      ^Type HELP at any time.^";
-Release 2;
+Release 3;
 Serial "261110";
 
 Constant STATUSLINE_SCORE; Statusline score;
@@ -651,15 +651,15 @@ Array hint_shown -> 12;
 [ HintQuestion q;
     switch (q) {
     1: print "What should I do first?";
-    2: print "Is there anything in the shoebox?";
+    2: print "Anything in the shoebox?";
     3: print "Is the phone any use?";
-    4: print "How do I open the big cardboard box?";
-    5: print "Is there anything worth reading in here?";
+    4: print "How do I open the big box?";
+    5: print "Anything worth reading?";
     6: print "Where is the story disk?";
     7: print "Does the Amiga do anything?";
     8: print "How do I defeat the grue?";
     9: print "How do I get all 8 points?";
-    10: print "Is there anything the manual doesn't mention?";
+    10: print "What isn't in the manual?";
     11: print "How do I make toast?";
     }
 ];
@@ -705,19 +705,20 @@ Array hint_shown -> 12;
 ];
 
 [ HintsSub q;
-    print "THE HINT BOOKLET^^Each question has answers hidden in invisible ink. To
-        reveal them one at a time, type HINT and the question's number, like
-        HINT 6. Type it again to see the next answer.^";
+    ! Kept short enough for a 40 x 24 screen, with the how-to-use line last,
+    ! so it is still on screen even on an interpreter with no MORE prompt.
+    print "THE HINT BOOKLET^";
     for (q = 1 : q <= HINT_QUESTIONS : q++) {
-        if (q == 1) print "^YOUR BEDROOM^";
-        if (q == 3) print "^THE HALLWAY^";
-        if (q == 4) print "^DAD'S STUDY^";
-        if (q == 6) print "^THE LOUNGE ROOM^";
-        if (q == 9) print "^GENERAL^";
+        if (q == 1) print "^BEDROOM^";
+        if (q == 3) print "HALLWAY^";
+        if (q == 4) print "STUDY^";
+        if (q == 6) print "LOUNGE ROOM^";
+        if (q == 9) print "GENERAL^";
         print "  ", q, ". ";
         HintQuestion(q);
         new_line;
     }
+    print "^Answers are in invisible ink. Type HINT and a number, like HINT 6, to reveal them one at a time.^";
 ];
 
 [ HintNumSub q n;

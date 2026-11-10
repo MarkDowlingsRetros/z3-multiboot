@@ -50,7 +50,7 @@ HEAD = """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name=
 <meta name="claude:viewport-fit-sides" content="cover">
 <!--
 Z3 Multiboot
-Version 0.5. Developed by Mark Dowling, Melbourne, Australia, November 2026.
+Version 0.5.1. Developed by Mark Dowling, Melbourne, Australia, November 2026.
 Released into the public domain (see LICENSE at github.com/MarkDowlingsRetros/z3-multiboot).
 Hacks and remixes welcome. A credit is appreciated if you share your own version.
 -->
