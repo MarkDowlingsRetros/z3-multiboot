@@ -81,7 +81,11 @@ Saves, auto-resume and the story files you load are stored in your browser only.
 
 ## Which Zork I?
 
-The `zork1.z3` in Microsoft's release is **Release 119 / Serial 880429**, the final development build preserved in Infocom's archive. It is not the Release 88 that shipped on disk, so a few messages and details differ from the version you may remember. The Zork II and III files are likewise late builds (Release 63 and Release 25). If you have the shipped story files, they load just the same.
+The `zork1.z3` in Microsoft's release is **Release 119 / Serial 880429**, a late build preserved in Infocom's archive. It is not the commercially shipped **Release 88**, which is generally regarded as the definitive version, so a few messages and details differ from the game you may remember.
+
+**Andrew Plotkin (Zarf)** kindly pointed out that Release 119 almost certainly never went through Infocom's formal quality assurance. For the original, fully tested Zork I, **Release 88 is recommended**.
+
+The Zork II and III files are likewise late builds (Release 63 and Release 25). If you have the original shipped story files, they load just the same.
 
 ## Limitations
 
@@ -117,6 +121,7 @@ python3 build.py --welcome welcome.z3
 ## Credits
 
 - **Infocom** for the Z-machine and the games it ran. **Microsoft** released Zork I, II and III under the MIT licence in 2025 (published at [historicalsource](https://github.com/historicalsource)). No game files are included here.
+- **Andrew Plotkin (Zarf)** for the history of the Zork I releases, and **Fredrik Ramsberg** for the [MORE] prompt report.
 - **Welcome Disk** written by Mark Dowling, compiled with [Inform 6](https://github.com/DavidKinder/Inform6) and the [PunyInform](https://github.com/johanberntsson/PunyInform) library by Fredrik Ramsberg and Johan Berntsson (MIT licence).
 - **ELIZA** is our own take on Joseph Weizenbaum's 1966 program, with our own script.
 - **Boing!** is remade in tribute to the 1984 Amiga demo by Dale Luck and RJ Mical.
