@@ -1,0 +1,845 @@
+!% -~S
+!% $OMIT_UNUSED_ROUTINES=1
+!% $ZCODE_LESS_DICT_DATA=1
+!% $LONG_DICT_FLAG_BUG=0
+!% $ZCODE_COMPACT_GLOBALS=1
+
+! ============================================================================
+!  THE COMPUTER ROOM
+!  The Welcome Disk for Z3 Multiboot.
+!  Developed by Mark Dowling, Melbourne, Australia, November 2026.
+!  Public domain: hacks and remixes welcome, a credit is appreciated.
+!
+!  Written in Inform 6 with the PunyInform library (MIT licence,
+!  github.com/johanberntsson/PunyInform). To rebuild:
+!     inform6 -v3 +include_path=PunyInform/lib welcome.inf welcome.z3
+! ============================================================================
+
+Constant Story      "THE COMPUTER ROOM";
+Constant Headline   "^The Welcome Disk for Z3 Multiboot.
+                     ^Developed by Mark Dowling, Melbourne, 2026.
+                     ^Type HELP at any time.^";
+Release 2;
+Serial "261110";
+
+Constant STATUSLINE_SCORE; Statusline score;
+Constant MAX_SCORE = 8;
+Constant OPTIONAL_NO_ADD_TO_SCOPE;
+Constant OPTIONAL_NO_DARKNESS;
+Constant OPTIONAL_EXTENDED_VERBSET;
+Constant RUNTIME_ERRORS = 0;
+Constant INITIAL_LOCATION_VALUE = Bedroom;
+
+! When the parser doesn't understand, ELIZA (who lives on the Apple II) chips in.
+Constant MSG_PARSER_UNKNOWN_VERB 1001;
+Constant MSG_PARSER_UNKNOWN_SENTENCE 1002;
+Constant MSG_PARSER_DONT_UNDERSTAND_WORD 1003;
+
+Include "globals.h";
+
+Global eliza_turn = 0;
+Global eliza_named = false;
+Global eliza_streak = 0;
+Global eliza_last = -1;
+! Failed commands don't use up a turn, so an unchanged turn count means the player
+! is stuck in a row. On the third miss in a row ELIZA points them at HELP.
+[ ElizaSays;
+    if (turns == eliza_last) eliza_streak++;
+    else eliza_streak = 1;
+    eliza_last = turns;
+    if (eliza_named) print "^ELIZA adds: ";
+    else {
+        print "^ELIZA, from the Apple II, adds: ";
+        eliza_named = true;
+    }
+    if (eliza_streak == 3) { print "YOU SEEM TO BE TYPING A LOT. TRY HELP."; new_line; rtrue; }
+    eliza_turn++;
+    switch (eliza_turn % 7) {
+    1: print "PLEASE GO ON.";
+    2: print "TELL ME MORE.";
+    3: print "HOW DOES THAT MAKE YOU FEEL?";
+    4: print "WHY DO YOU SAY THAT?";
+    5: print "INTERESTING. CAN YOU SAY IT ANOTHER WAY?";
+    6: print "DOES IT BOTHER YOU THAT I DIDN'T UNDERSTAND?";
+    0: print "I SEE. AND WHAT DID YOU MEAN BY THAT?";
+    }
+    new_line;
+];
+[ LibraryMessages p_msg p_arg_1 p_arg_2;
+    p_arg_1 = p_arg_2; ! unused
+    switch (p_msg) {
+    MSG_PARSER_UNKNOWN_VERB:
+        print "That is not a verb I recognize.";
+        ElizaSays();
+        rtrue;
+    MSG_PARSER_UNKNOWN_SENTENCE:
+        print "I don't understand that sentence.";
+        ElizaSays();
+        rtrue;
+    MSG_PARSER_DONT_UNDERSTAND_WORD:
+        print "Sorry, I don't understand what ~";
+        _PrintUnknownWord();
+        print "~ means.";
+        ElizaSays();
+        rtrue;
+    }
+    rfalse;
+];
+
+Include "puny.h";
+
+! Each thing the guide teaches is worth one point, once.
+Array learned -> 9;
+[ Learn n;
+    if (learned->n == 0) { learned->n = 1; score++; }
+];
+
+! Every room: SMELL and LISTEN get a line of their own, and so does the floor.
+[ RoomSenses smell hear;
+    if (action == ##Smell && noun == 0) { print (string) smell; new_line; rtrue; }
+    if (action == ##Listen && noun == 0) { print (string) hear; new_line; rtrue; }
+    if (action == ##Examine && noun == Directions && selected_direction == d_to)
+        "Shag-pile carpet, brown. A Lego piece went missing in it in 1979 and it's
+        still in there somewhere.";
+    rfalse;
+];
+
+! ---------------------------------------------------------------- bedroom ---
+
+Object Bedroom "Your Bedroom"
+  with description [;
+        print "Your bedroom. A Commodore 64 and its chunky disk drive take up most
+            of the desk, next to a stack of computer magazines. A poster is stuck
+            to the wall above the unmade bed";
+        if (Shoebox has open) print ", and your shoebox of disks lies open on the floor";
+        else print ", and your shoebox of disks is poking out from under it";
+        ". The door to the hallway is north.";
+    ],
+    before [;
+        return RoomSenses("Socks, and the warm-dust smell of a computer that's been on all morning.",
+            "The telly hums faintly. The drive's red light blinks, silently but hopefully.");
+    ],
+    n_to Hallway,
+    out_to Hallway,
+    cant_go "The only way out is NORTH, to the hallway.",
+  ;
+
+Object -> Desk "desk"
+  with name 'desk' 'table',
+    description "Covered in a Commodore 64, its disk drive and a stack of magazines.",
+  has scenery supporter;
+
+Object -> C64 "Commodore 64"
+  with parse_name [ n w; for (::) { w = NextWord(); if (w == 'commodore' or '64' or 'c64' or 'computer' or 'screen' or 'keyboard' or 'monitor' or 'pride' or 'joy') n++; else return n; } ],
+    description [;
+        Learn(1);
+        "Your pride and joy, plugged into the old portable telly. The screen
+        says READY. It needs a disk in the drive.
+        ^^(This is the first of six machines in Z3 Multiboot. Switch
+        between them any time with the buttons along the top of the page, or
+        hold Option or Alt and press 1 to 6. Your game carries on exactly
+        where it was. Try it now, then come back.)";
+    ],
+    before [;
+        SwitchOn: "It's already on, showing READY. It needs a disk in the drive.";
+        SwitchOff: "Not with Dad's footy tips on the screen. You'd never hear the end of it.";
+    ],
+  has scenery;
+
+Object -> Drive "disk drive"
+  with parse_name [ n w;
+        for (::) {
+            w = NextWord();
+            if (w == 'disk' or 'floppy') { if (NextWord() == 'drive') { n = n + 2; continue; } return n; }
+            if (w == 'drive' or 'slot' or 'lever' or '1541' or 'light' or 'red' or 'beige') n++;
+            else return n;
+        }
+    ],
+    description "A beige box nearly as big as the computer. The slot is empty and the
+        red light blinks hopefully.",
+  has scenery container open;
+
+Object -> Magazines "computer magazines"
+  with parse_name [ n w;
+        for (::) {
+            w = NextWord();
+            if (w == 'computer') { if (NextWord() == 'magazine' or 'magazines' or 'mags') { n = n + 2; continue; } return n; }
+            if (w == 'magazine' or 'magazines' or 'mags' or 'stack' or 'tips' or 'page' or 'listing' or 'listings' or 'program' or 'back') n++;
+            else return n;
+        }
+    ],
+    description [;
+        Learn(2);
+        "Mostly type-in listings that never quite worked. A tips page is folded
+        down at the corner:
+        ^^~UP and DOWN bring back commands you typed before. PAGE UP and PAGE
+        DOWN scroll back through the story. Option or Alt and Return goes full
+        screen. Shortcuts save typing: L for LOOK, X for EXAMINE, I for
+        INVENTORY, N, S, E and W for the directions.~
+        ^^On the back page is a program only one line long, for the C64:
+        ^10 PRINT CHR$(205.5+RND(1)); : GOTO 10";
+    ],
+  has scenery pluralname;
+
+Object -> Poster "poster"
+  with name 'poster' 'ball' 'grid' 'chequered',
+    description "A red and white chequered ball bouncing across a grid. Rumour has it one
+        of Dad's machines can do that.",
+  has scenery;
+
+Object -> Bed "bed"
+  with name 'bed' 'unmade' 'doona' 'pillow',
+    description "Unmade, obviously. Your shoebox of disks lives underneath.",
+    before [;
+        Enter: "No time for a nap. There's a disk to find.";
+    ],
+  has scenery supporter;
+
+Object -> Shoebox "shoebox"
+  with name 'shoebox' 'shoe' 'box' 'lid',
+    description [;
+        if (self has open) "Open, and full of floppy disks.";
+        "A shoebox with ~DISKS - KEEP OUT~ written on the lid.";
+    ],
+    after [;
+        Open:
+            Learn(3);
+            "You lift the lid. Floppy disks, dozens of them, each with a
+            label in your handwriting. None of them is the one you want.
+            ^^(In Z3 Multiboot, a disk is a story file. It plays
+            version 3 files, the format of the Zork trilogy and most Infocom
+            games up to 1985. Drag one onto the page, or use Options, Story
+            file, Load. Each game keeps its own saves, and Reset at the top
+            of the page takes the disk out. Microsoft released Zork I, II and III under an open
+            licence in 2025, and their story files are at
+            github.com/historicalsource: look for the .z3 file in each
+            game's COMPILED folder.)";
+    ],
+    before [;
+        Take: "It's staying right here where it belongs.";
+    ],
+  has scenery container openable;
+
+Object -> -> Floppies "floppy disks"
+  with name 'floppies' 'disks' 'labels' 'label',
+    description "Labels like ~GAMES 1~, ~DO NOT ERASE~ and ~CAVE ADVENTURE: REMEMBER THE MAGIC WORD~. None of them says
+        STORY DISK. You last saw that one in the lounge room.",
+    before [;
+        Take: "None of these is the one you want. The story disk is somewhere else.";
+    ],
+  has scenery pluralname;
+
+Object -> BedTelly "portable telly"
+  with name 'telly' 'tv' 'television' 'portable',
+    description "The old portable telly, with a coat hanger for an aerial. These days its
+        only job is being the C64's screen.",
+    before [;
+        SwitchOn: "It's already on. It's the C64's screen.";
+        SwitchOff: "Then you couldn't see the C64. Best leave it.";
+    ],
+  has scenery;
+
+Object -> Cables "cables"
+  with name 'cable' 'cables' 'cord' 'cords',
+    description "A tangle of cables under the desk. Pull the wrong one and the C64 resets.",
+    before [;
+        Take, Pull, Push, Touch: "Better not. You've lost an afternoon's typing that way before.";
+    ],
+  has scenery pluralname;
+
+Object -> Sock "sock"
+  with name 'sock' 'socks',
+    description "It's been under the bed since Easter. Best left alone.",
+    before [;
+        Examine: rfalse;
+        default: "You'd rather not. It's been under there since Easter.";
+    ],
+  has scenery;
+
+! Stands in for the story disk until you pick it up, so PUT DISK IN DRIVE
+! gets a helpful answer instead of "You can't see any such thing".
+Object -> NoDisk "story disk"
+  with name 'disk' 'story' 'floppy' 'disc',
+    before [;
+        if (Cat in Lounge)
+            "You haven't got the story disk yet. Last time you saw it, it was in
+            the lounge room.";
+        "You haven't got the story disk. It's still in the cat's basket in the
+        lounge room: go and TAKE it.";
+    ],
+  has scenery;
+
+! ---------------------------------------------------------------- hallway ---
+
+Object Hallway "Hallway"
+  with description "A narrow hallway with the phone on its little table. Your bedroom is
+        south, Dad's study is east and the lounge room is west.",
+    before [;
+        return RoomSenses("Floor polish. Mum's been at it again.",
+            "The phone isn't ringing. Nobody ever rings on a Saturday.");
+    ],
+    s_to Bedroom,
+    e_to Study,
+    w_to Lounge,
+    cant_go "From here: SOUTH to your bedroom, EAST to Dad's study, WEST to the lounge room.",
+  ;
+
+Object -> PhoneTable "phone table"
+  with parse_name [ n w; for (::) { w = NextWord(); if (w == 'phone' or 'telephone' or 'table' or 'receiver' or 'handset' or 'dial' or 'tone' or 'little' or 'cream') n++; else return n; } ],
+    description "The phone sits on a doily. Under it is a note from Mum.",
+    before [;
+        Take: "Mum would kill you.";
+    ],
+  has scenery supporter;
+
+Object -> Doily "doily"
+  with name 'doily' 'lace',
+    description "Mum's good doily. The phone has to sit exactly in the middle of it.",
+    before [;
+        Take: "And move the phone off-centre? Mum would know.";
+    ],
+  has scenery;
+
+Object -> MumsBook "little book"
+  with parse_name [ n w; for (::) { w = NextWord(); if (w == 'book' or 'little' or 'address' or 'numbers' or 'number') n++; else return n; } ],
+    description "Mum's little book of phone numbers isn't here. She takes it everywhere.",
+    before [;
+        Examine: rfalse;
+        default: "Mum's little book of phone numbers isn't here. She takes it everywhere.";
+    ],
+  has scenery;
+
+Object -> HallWays "rooms"
+  with parse_name [ n w; for (::) { w = NextWord(); if (w == 'study' or 'lounge' or 'bedroom' or 'rooms') n++; else return n; } ],
+    description "Your bedroom is SOUTH, Dad's study is EAST and the lounge room is WEST.",
+    before [;
+        Enter: "Just say which way: SOUTH to your bedroom, EAST to the study, WEST to the lounge room.";
+    ],
+  has scenery pluralname;
+
+Object -> Note "note from Mum"
+  with name 'note' 'mum' 'mum^s' 'message',
+    initial "A note from Mum is tucked under the phone.",
+    description [;
+        Learn(4);
+        "~Gone to Chadstone with the Holden. Back by 4. If you're playing those
+        games, SAVE first, before you do anything silly! Love, Mum.~
+        ^^Underneath, in your own handwriting, you've added:
+        ^~Type SAVE and choose a position from 1 to 5. RESTORE brings it back.
+        The Saves button at the top of the page can load, export and import
+        positions. Close the page and it remembers where you were.~";
+    ];
+
+! ------------------------------------------------------------------ study ---
+
+Object Study "Dad's Study"
+  with description "Dad's study, which smells of pipe smoke and printer paper. His IBM PC
+        glows amber on the desk, a little Macintosh sits on the filing cabinet,
+        and a large cardboard box stands in the corner. His manuals are on the
+        bookshelf. The hallway is west.",
+    before [;
+        return RoomSenses("Pipe smoke and printer paper. Very Dad.",
+            "The IBM PC's fan whirs away to itself.");
+    ],
+    w_to Hallway,
+    out_to Hallway,
+    cant_go "The only way out is WEST, back to the hallway.",
+  ;
+
+Object -> IBMPC "IBM PC"
+  with parse_name [ n w; for (::) { w = NextWord(); if (w == 'ibm' or 'pc' or 'computer' or 'amber' or 'screen' or 'monitor' or 'sticker' or 'keyboard' or 'spreadsheet') n++; else return n; } ],
+    description [;
+        Learn(5);
+        "Dad's pride and joy: an IBM PC with an amber screen that he says is
+        easier on the eyes. A sticker on the side reads ~SEE OPTIONS~.
+        ^^(Options is at the top of the page. It has sound, CRT scanlines,
+        amber or green for the IBM screen, 40 or 80 columns for the Apple II,
+        and the start-up sequences each machine plays when it boots.)";
+    ],
+    before [;
+        SwitchOn: "It's already on, humming to itself.";
+        SwitchOff: "Dad's spreadsheet is open. Better not.";
+    ],
+  has scenery;
+
+Object -> Mac "Macintosh"
+  with name 'mac' 'macintosh' 'mouse' 'beige',
+    description "A tiny beige Macintosh with a mouse. Dad drags its windows around
+        just to show off.
+        ^^(On Z3 Multiboot's Macintosh, Amiga and NeXTSTEP desktops, drag
+        a window's corner to resize it. Each machine remembers its size.)",
+  has scenery;
+
+Object -> Cabinet "filing cabinet"
+  with name 'filing' 'cabinet' 'drawer' 'drawers',
+    description "Grey, metal, and full of Dad's tax returns going back to 1972. Every
+        one of them reconciled.",
+    before [;
+        Open: "Locked. Dad says the tax returns are none of your business.";
+    ],
+  has scenery supporter;
+
+Object -> StudyDesk "desk"
+  with name 'desk',
+    description "Dad's desk: the IBM PC, a dot-matrix printer and a box of printer paper,
+        all lined up at right angles.",
+  has scenery supporter;
+
+Object -> Printer "printer"
+  with parse_name [ n w; for (::) { w = NextWord(); if (w == 'printer' or 'paper' or 'dot' or 'matrix' or 'dot-matrix' or 'tractor' or 'feed') n++; else return n; } ],
+    description "A dot-matrix printer and a box of tractor-feed paper, the kind with the
+        holes down the sides. When it prints, the whole street knows.",
+    before [;
+        SwitchOn: "And wake the neighbours? It sounds like a chainsaw.";
+        Take: "It weighs about as much as you do.";
+    ],
+  has scenery;
+
+Object -> Pipe "pipe smoke"
+  with name 'pipe' 'smoke' 'tobacco' 'smell',
+    description "Dad's pipe isn't here, but the smell of it never leaves.",
+    before [;
+        Examine, Smell: rfalse;
+        default: "It's just the smell of Dad's pipe. It's not going anywhere.";
+    ],
+  has scenery;
+
+Object -> BigBox "cardboard box"
+  with name 'cardboard' 'box' 'next' 'carton',
+    description "A big box with ~NeXT~ stamped on the side. Dad says it's from the
+        future and you are not to touch it until 1988.",
+    before [;
+        Open, Take, Push, Pull, Attack: "You'd better not. It hasn't been invented yet.";
+    ],
+  has scenery;
+
+Object -> Bookshelf "bookshelf"
+  with name 'bookshelf' 'shelf' 'books',
+    description "Dad's computer manuals. One of them looks newer than the rest.",
+  has scenery supporter;
+
+Object -> -> Manual "owner's manual"
+  with parse_name [ n w; for (::) { w = NextWord(); if (w == 'manual' or 'manuals' or 'owner^s' or 'owners' or 'book' or 'warranties' or 'pages' or 'page' or 'newer') n++; else return n; } ],
+    article "an",
+    description [;
+        Learn(6);
+        "~Z3 MULTIBOOT. OWNER'S MANUAL.~ Most of it is
+        about warranties, but two pages are dog-eared:
+        ^^~TRANSCRIPTS: Saves, Save transcript downloads your whole game as
+        a text file.
+        ^^MACHINE: Reset, at the top of the page, takes the disk out. In
+        Options, Restart computer boots again with the same disk.
+        Factory reset clears everything. Both ask you to click twice.~
+        ^^The last page just says: ~Some things are not in the manual.~";
+    ];
+
+! ----------------------------------------------------------------- lounge ---
+
+Object Lounge "Lounge Room"
+  with description [;
+        print "The lounge room. The telly is off. Dad's new Amiga sits on the
+            coffee table, where Mum keeps telling him not to leave it, and the
+            family's Apple II lives on a trolley in the corner. ";
+        if (Cat in self) "The cat is asleep in its basket by the heater. The
+            hallway is east.";
+        "The cat's basket is by the heater. The hallway is east.";
+    ],
+    before [;
+        if (action == ##Listen && noun == 0 && Cat in Lounge)
+            "The cat is purring like a disk drive on its last legs.";
+        return RoomSenses("Warm cat, and the heater's dusty smell.",
+            "The heater ticks as it warms up.");
+    ],
+    e_to Hallway,
+    out_to Hallway,
+    cant_go "The only way out is EAST, back to the hallway.",
+  ;
+
+Object -> Amiga "Amiga"
+  with name 'amiga' 'computer' 'new',
+    description "Brand new, and Dad says it can talk. It even has a hard drive.
+        ^^(Z3 Multiboot's Amiga keeps every game you load on its hard drive,
+        DH0: Work, so you can switch between them with a double-click. There's
+        more on its desktop too. Have a look around.)",
+  has scenery;
+
+Object -> Apple2 "Apple II"
+  with name 'apple' 'ii' 'trolley',
+    description "The same as the ones at school, which is why nobody uses it.
+        ^^(Z3 Multiboot's Apple II can show 40 or 80 columns. See Options.
+        And its disk has a couple of programs on it. Switch to the Apple II and
+        type CATALOG to see them.)",
+  has scenery;
+
+Object -> Telly "telly"
+  with name 'telly' 'tv' 'television',
+    description "Off. The footy's on, but Dad has gone to watch it in person.",
+    before [;
+        SwitchOn: "Not now. You have a disk to find.";
+    ],
+  has scenery;
+
+Object -> CoffeeTable "coffee table"
+  with parse_name [ n w;
+        for (::) {
+            w = NextWord();
+            if (w == 'tv') { if (NextWord() == 'week' or 'weeks') { n = n + 2; continue; } return n; }
+            if (w == 'coffee' or 'table' or 'week' or 'weeks' or 'pile' or 'scratched') n++;
+            else return n;
+        }
+    ],
+    description "Scratched, with a pile of TV Weeks and Dad's Amiga on top.",
+  has scenery supporter;
+
+Object -> Couch "couch"
+  with name 'couch' 'sofa' 'lounge' 'plastic',
+    description "The good couch, still in its plastic covers for when visitors come.",
+    before [;
+        Enter: "It squeaks in its plastic covers. No time to sit about: there's a disk to find.";
+    ],
+  has scenery supporter;
+
+Object -> Hair "cat hair"
+  with name 'hair' 'fur' 'hairs',
+    description "Ginger cat hair. It gets on everything.",
+    before [;
+        Take: "It gets on you without any help.";
+    ],
+  has scenery;
+
+Object -> Heater "heater"
+  with name 'heater' 'fire',
+    description "Warm. The cat's favourite thing in the world.",
+  has scenery;
+
+Object -> Basket "cat basket"
+  with name 'basket' 'bed',
+    description [;
+        if (Cat in Lounge) "The cat is in it, asleep on something flat and square.";
+        "A battered basket covered in ginger hair.";
+    ],
+  has scenery container open;
+
+Object -> Cat "cat"
+  with name 'cat' 'puss' 'kitty' 'ginger',
+    description "Ginger, enormous and fast asleep. Something flat and square is poking
+        out from under it.",
+    before [;
+        WakeOther, Touch, Push, Pull, Take, Rub, Kiss, Squeeze, Attack, Search:
+            move Disk to Basket;
+            remove self;
+            remove UnderCat;
+            "The cat opens one eye, decides you are not worth it, and stalks
+            off down the hall. Where it was lying is a floppy disk.";
+        Listen: "Purring, like a disk drive on its last legs.";
+    ],
+  has scenery animate;
+
+Object -> UnderCat "something flat and square"
+  with name 'disk' 'floppy' 'something' 'flat',
+    before [;
+        Examine: "It looks a lot like a floppy disk. The cat is lying on it.";
+        default: "The cat is lying on it. You'll have to shift the cat first.";
+    ],
+  has scenery;
+
+Object Disk "story disk"
+  with name 'disk' 'floppy' 'story' 'disc',
+    description "A floppy disk with ~STORY DISK~ on the label, in your handwriting. A bit
+        hairy, but it'll be fine.",
+    after [;
+        Take:
+            remove NoDisk;
+            if (learned->7 == 0) {
+                Learn(7);
+                "Got it. Covered in cat hair, but it's the one. Now to put it
+                in the drive.";
+            }
+    ],
+    before [;
+        Insert:
+            if (second == Drive or C64 or Desk) {
+                Learn(8);
+                print "You slide the disk into the drive and flip the lever. The
+                    drive rattles like it's chewing gravel, the red light
+                    flickers, and after a very long minute the screen says READY.
+                    ^^You are ready.
+                    ^^That's all this disk can teach you. The story disk was
+                    pretend, of course: in Z3 Multiboot a real disk is a
+                    story file. To play one, press Reset at the top of the page
+                    to take this disk out, then drop a version 3 story file onto
+                    the page. Microsoft released Zork I, II and III under an open
+                    licence in 2025; their story files are at
+                    github.com/historicalsource, in each game's COMPILED folder.
+                    ^^Happy adventuring. And mind the grues.^";
+                if (score < MAX_SCORE)
+                    print "^(You skipped something along the way. RESTART and type HINT 9 to
+                        find what you missed.)^";
+                deadflag = 2;
+                rtrue;
+            }
+        PutOn:
+            if (second == Desk or C64 or Drive) "In the drive, not on it.";
+    ];
+
+! ------------------------------------------------------- around the house ---
+
+Object Walls "walls"
+  with name 'wall' 'walls' 'wallpaper',
+    found_in Bedroom Hallway Study Lounge,
+    description "Orange-and-brown wallpaper, put up in 1976 and never forgiven.",
+  has scenery pluralname;
+
+Object Ceiling "ceiling"
+  with name 'ceiling' 'roof' 'cobweb' 'popcorn',
+    found_in Bedroom Hallway Study Lounge,
+    description "Popcorn ceiling. Nothing up there but a cobweb.",
+  has scenery;
+
+Object HouseWindow "window"
+  with name 'window' 'windows' 'curtain' 'curtains',
+    found_in Bedroom Hallway Study Lounge,
+    description "Out the window: a Holden-shaped gap in the driveway, the Hills Hoist,
+        and a very ordinary Saturday.",
+    before [;
+        Open: "It's stuck. It's been stuck since 1981.";
+        Close: "It's already shut. It's been shut since 1981.";
+        Enter: "Through the window? You'd never hear the end of it.";
+    ],
+  has scenery;
+
+Object HereRoom "room"
+  with name 'room' 'here' 'around' 'house',
+    found_in Bedroom Hallway Study Lounge,
+    before [;
+        Examine, Search: <<Look>>;
+    ],
+  has scenery;
+
+Object HouseDoors "door"
+  with name 'door' 'doors' 'doorway',
+    found_in Bedroom Hallway Study Lounge,
+    description "All the doors are open. Just say which way you want to go, like NORTH or WEST.",
+    before [;
+        Open: "It's already open.";
+        Close: "Leave it. Mum likes the doors open so the heater reaches everywhere.";
+        Enter: "Just say which way you want to go, like NORTH or WEST.";
+    ],
+  has scenery;
+
+! ------------------------------------------------------------ extra verbs ---
+
+[ HelpSub;
+    "This Welcome Disk shows you around Z3 Multiboot. Explore the
+    house, EXAMINE the computers and READ anything that looks useful. Your
+    score goes up each time you learn something, 8 points in all.
+    ^^Useful commands: LOOK, EXAMINE (or X), TAKE, DROP, OPEN, READ,
+    INVENTORY (or I), PUT something IN something, and directions such as
+    NORTH (or N). SAVE, RESTORE, RESTART and QUIT work too.
+    ^^Stuck? Type HINTS for the hint booklet.";
+];
+Verb meta 'help' 'about' 'info' * -> Help;
+
+! ---------------------------------------------------------- hint booklet ---
+! In the spirit of the old invisible-ink hint books: each question's answers
+! are revealed one at a time, from a gentle nudge to the full answer.
+
+Constant HINT_QUESTIONS = 11;
+Array hint_count -> 0 3 2 2 4 2 4 3 4 4 4 3;
+Array hint_shown -> 12;
+
+[ HintQuestion q;
+    switch (q) {
+    1: print "What should I do first?";
+    2: print "Is there anything in the shoebox?";
+    3: print "Is the phone any use?";
+    4: print "How do I open the big cardboard box?";
+    5: print "Is there anything worth reading in here?";
+    6: print "Where is the story disk?";
+    7: print "Does the Amiga do anything?";
+    8: print "How do I defeat the grue?";
+    9: print "How do I get all 8 points?";
+    10: print "Is there anything the manual doesn't mention?";
+    11: print "How do I make toast?";
+    }
+];
+
+[ HintAnswer q n;
+    switch (q * 10 + n) {
+    11: "Look around. Everything worth knowing is in this house.";
+    12: "EXAMINE things, especially the computers. READ anything with writing on it.";
+    13: "Start with EXAMINE C64 and READ MAGAZINES, right here in your bedroom.";
+    21: "Only one way to find out.";
+    22: "OPEN SHOEBOX. It's not the disk you want, but read what it says about disks.";
+    31: "Not the phone itself.";
+    32: "What's tucked under it? READ NOTE.";
+    41: "Have you looked at what's written on it?";
+    42: "It says it's from the future.";
+    43: "Some things aren't meant to be opened before 1988.";
+    44: "You can't. It's a joke. Leave Dad's box alone.";
+    51: "Dad keeps a lot of manuals.";
+    52: "One looks newer than the rest. READ MANUAL.";
+    61: "Somewhere warm.";
+    62: "Who in this house always finds the warmest spot?";
+    63: "What's the cat lying on?";
+    64: "WAKE CAT (or PET CAT), then TAKE DISK. Then take it back to your bedroom and PUT DISK IN DRIVE.";
+    71: "Not in this game.";
+    72: "But Z3 Multiboot's Amiga is another story.";
+    73: "Switch to the Amiga and look at the desktop around the game window.";
+    81: "There are no grues in Melbourne.";
+    82: "Certainly not in 1985.";
+    83: "All the lights are on. Mum would be furious about the power bill.";
+    84: "You have been playing too much Zork.";
+    91: "Each point is something you learn about Z3 Multiboot.";
+    92: "Three are in your bedroom, one is in the hallway, two are in Dad's study, and the last two are about the story disk itself.";
+    93: "In your bedroom: EXAMINE C64, READ MAGAZINES and OPEN SHOEBOX. In the hallway: READ NOTE.";
+    94: "In the study: EXAMINE PC and READ MANUAL. In the lounge room: wake the cat and TAKE DISK. Back in your bedroom: PUT DISK IN DRIVE.";
+    101: "The last page of the manual says some things aren't in it.";
+    102: "A few words work in any game, but only when the game doesn't know them.";
+    103: "Ask Z3 Multiboot who created this. And when an Amiga had a very bad day, it called for a GURU.";
+    104: "Watch the IBM PC's start-up screen closely, and keep an eye on the Amiga's desktop.";
+    111: "There is no kitchen in this game.";
+    112: "There is no toast in this game.";
+    113: "Stop it.";
+    }
+];
+
+[ HintsSub q;
+    print "THE HINT BOOKLET^^Each question has answers hidden in invisible ink. To
+        reveal them one at a time, type HINT and the question's number, like
+        HINT 6. Type it again to see the next answer.^";
+    for (q = 1 : q <= HINT_QUESTIONS : q++) {
+        if (q == 1) print "^YOUR BEDROOM^";
+        if (q == 3) print "^THE HALLWAY^";
+        if (q == 4) print "^DAD'S STUDY^";
+        if (q == 6) print "^THE LOUNGE ROOM^";
+        if (q == 9) print "^GENERAL^";
+        print "  ", q, ". ";
+        HintQuestion(q);
+        new_line;
+    }
+];
+
+[ HintNumSub q n;
+    q = noun;
+    if (q < 1 || q > HINT_QUESTIONS) "There's no question with that number. Type HINTS to see the list.";
+    if (hint_shown->q < hint_count->q) hint_shown->q = hint_shown->q + 1;
+    HintQuestion(q);
+    new_line;
+    for (n = 1 : n <= hint_shown->q : n++) {
+        print "  ", n, ". ";
+        HintAnswer(q, n);
+    }
+    if (hint_shown->q < hint_count->q)
+        print "^(", hint_count->q - hint_shown->q, " more. Type HINT ", q, " again.)^";
+    else
+        print "^(That's every answer for this question.)^";
+];
+
+Verb meta 'hint' 'hints' 'clue' 'clues'
+    *                                -> Hints
+    * number                         -> HintNum;
+
+Verb 'pet' 'pat' 'stroke' 'cuddle' 'shoo' * noun -> Touch;
+Verb 'lift' * noun -> Take;
+
+[ GetUpSub; "You're already up. It's well past ten."; ];
+Extend 'get' first * 'up' -> GetUp;
+Extend 'stand' first * -> GetUp * 'up' -> GetUp;
+
+[ LookBeneathSub;
+    if (noun == Bed) "Your shoebox of disks, and a sock you'd given up on.";
+    if (noun == Cat or UnderCat) "Something flat and square. It looks a lot like a floppy disk.";
+    if (noun == Desk) "Cables, and more cables.";
+    "Nothing there but dust.";
+];
+Extend 'look' * 'under' noun -> LookBeneath;
+
+Verb 'load' * noun -> InsertDrive;
+
+! USE is the first thing many people type, so give it a sensible answer.
+[ UseSub;
+    if (noun == Disk) <<InsertDrive Disk>>;
+    if (noun == PhoneTable) <<Ring>>;
+    if (noun == C64 or IBMPC or Mac or Amiga or Apple2) <<Examine noun>>;
+    "Adventure games like you to be specific. Try EXAMINE, READ, OPEN, TAKE or
+    PUT something IN something.";
+];
+Verb 'use' * noun -> Use;
+
+! Ringing people: everyone has a reason not to answer.
+[ RingSub;
+    if (location ~= Hallway) "The phone is in the hallway.";
+    if (noun == Cat) <<RingCat>>;
+    "You pick up the receiver and listen to the dial tone. Mum's at Chadstone and
+    Dad's at the footy. There's nobody to ring. You put it back.";
+];
+[ RingMumSub;
+    if (location ~= Hallway) "The phone is in the hallway.";
+    "You pick up the receiver and think about ringing Mum, then remember it's
+    1985: no mobile phones. She's somewhere in Chadstone, nowhere near a phone.
+    You put it back.";
+];
+[ RingDadSub;
+    if (location ~= Hallway) "The phone is in the hallway.";
+    "Dad's at the footy. Even if there were a phone there, he'd never hear it over
+    the crowd. You put the receiver back.";
+];
+[ RingCatSub;
+    "The cat doesn't have a phone. It barely acknowledges you in person.";
+];
+[ RingOtherSub;
+    if (location ~= Hallway) "The phone is in the hallway.";
+    "You don't know their number. Mum keeps all the numbers in her little book,
+    and she's taken it to Chadstone.";
+];
+Verb 'ring' 'dial' 'call' 'phone'
+    *                                -> Ring
+    * 'mum'/'mother'/'mom'/'mummy'   -> RingMum
+    * 'dad'/'father'/'daddy'         -> RingDad
+    * 'cat'/'puss'/'kitty'           -> RingCat
+    * noun                           -> Ring
+    * topic                          -> RingOther;
+
+! INSERT DISK (or PUT DISK IN) on its own: assume the drive, if you're near it.
+[ InsertDriveSub;
+    if (noun ~= Disk) "That doesn't go in anything.";
+    if (parent(Disk) ~= player) "You'll need to pick it up first. TAKE DISK.";
+    if (location ~= Bedroom) "The disk drive is in your bedroom.";
+    <<Insert Disk Drive>>;
+];
+Extend 'insert' first * held -> InsertDrive;
+Extend 'put' first * held 'in' -> InsertDrive;
+
+! The magic word from Colossal Cave Adventure (1976) works here too: it whisks
+! you between your bedroom and the lounge room. PLUGH just gets a hollow voice.
+[ XyzzySub;
+    if (location == Bedroom) {
+        print "The room goes all wobbly, like a tape on a cheap cassette deck. When
+            it settles, you're in the lounge room.^^";
+        PlayerTo(Lounge);
+        rtrue;
+    }
+    if (location == Lounge) {
+        print "The room goes all wobbly, like a tape on a cheap cassette deck. When
+            it settles, you're back in your bedroom.^^";
+        PlayerTo(Bedroom);
+        rtrue;
+    }
+    "A hollow voice says, ~Not from here.~";
+];
+[ PlughSub; "A hollow voice says, ~Wrong game. Try Zork.~"; ];
+Verb 'xyzzy' * -> Xyzzy;
+Verb 'plugh' * -> Plugh;
+
+[ Initialise;
+    player.description = "A kid in a footy jumper with a Walkman clipped to your belt. Ready
+        for anything, as long as it's on disk.";
+    lookmode = 2; ! always describe rooms in full: kinder to newcomers
+    print "^^Melbourne, a Saturday in 1985.
+        ^^Mum has taken the Holden to Chadstone, Dad is at the footy, and the
+        house is all yours. Somewhere in here is the disk you've been waiting
+        all week to play.
+        ^^(New to adventure games? Type what you want to do, like LOOK,
+        EXAMINE DESK or GO NORTH, and press Return. Type HELP for more.)^^";
+];
